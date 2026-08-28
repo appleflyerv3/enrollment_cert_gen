@@ -8,10 +8,10 @@ from signer_types import RSAKeyPair, ECCKeyPair
 
 KEY_MATERIAL_PRINTS = False
 
-def main() -> int:
+def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCKeyPair, bytes]:
     # Ensure the HMAC in the PROD_RO_CERT_REGION verifies the above certificate region,
     # with the EPS as a key.
-    eps_match_ro_certs = verify_eps_matches_ro_certs(PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED)
+    eps_match_ro_certs = verify_eps_matches_ro_certs(ro_certs, eps)
     if not eps_match_ro_certs:
         print("PROD_RO_CERT_REGION does not correspond to PROD_ENDORSEMENT_SEED.")
         return 1
@@ -19,7 +19,7 @@ def main() -> int:
     print("PROD_RO_CERT_REGION corresponds to PROD_ENDORSEMENT_SEED.")
 
     # From the EPS, generate EK RSA keypair
-    ek_rsa_keypair: RSAKeyPair = derive_cr50_ek_rsa(PROD_ENDORSEMENT_SEED)
+    ek_rsa_keypair: RSAKeyPair = derive_cr50_ek_rsa(eps)
     print("Derived EK RSA keypair")
 
     if KEY_MATERIAL_PRINTS:
@@ -27,7 +27,7 @@ def main() -> int:
         print(ek_rsa_public_modulus)
 
     # Extract the EK RSA certificate from the RO_CERT_REGION
-    ek_rsa_cert = extract_ek_cert(129, PROD_RO_CERT_REGION)
+    ek_rsa_cert = extract_ek_cert(129, ro_certs)
     if not ek_rsa_cert:
         print("Failed to extract EK RSA certificate")
         return 1
@@ -35,19 +35,24 @@ def main() -> int:
     print("Extracted EK RSA certificate")
 
     # From the EPS, generate EK ECC keypair
-    ek_ecc_keypair: ECCKeyPair = derive_cr50_ek_ecc(PROD_ENDORSEMENT_SEED)
+    ek_ecc_keypair: ECCKeyPair = derive_cr50_ek_ecc(eps)
     print("Derived EK ECC keypair")
 
     if KEY_MATERIAL_PRINTS:
         ek_sec1_p256_point = ek_ecc_keypair.public_bytes
         print(ek_sec1_p256_point)
 
-    # Extract the EK RSA certificate from the RO_CERT_REGION
-    ek_rsa_cert = extract_ek_cert(130, PROD_RO_CERT_REGION)
-    if not ek_rsa_cert:
-        print("Failed to extract EK RSA certificate")
+    # Extract the EK ECC certificate from the RO_CERT_REGION
+    ek_ecc_cert = extract_ek_cert(130, ro_certs)
+    if not ek_ecc_cert:
+        print("Failed to extract EK ECC certificate")
         return 1
 
-    print("Extracted EK RSA certificate")
+    print("Extracted EK ECC certificate")
+
+    return ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_keypair
+
+def main() -> int:
+    ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert = derive_ek_info(PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED)
                              
 sys.exit(main())
