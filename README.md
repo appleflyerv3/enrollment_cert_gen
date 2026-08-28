@@ -41,18 +41,12 @@ The AIK private key does not leave the TPM.
     - TPM version
     - Chromebook DEN, which is HMAC-SHA256("attestation_based_enrollment", stable_device_secret)
 
-> When the AIK is enrolled with PCR0 and PCR1 values, we believe that a \
-> record is kept on the PCA server of the attested PCR0(boot mode). \
-> With this attested boot mode, the enrollment certificates that are \
-> signed by the PCA when we prove that we own this AIK end up \
-> having device state encoded into the certificate message(CN). \ 
-> This means that a single AIK is bound to a single boot mode state for its \
+> When the AIK is enrolled with PCR0 and PCR1 values, we believe that a record is kept on the PCA server of the attested PCR0(boot mode). \
+> With this attested boot mode, the enrollment certificates that are signed by the PCA when we prove that we own this AIK end up \
+> having device state encoded into the certificate message(CN). This means that a single AIK is bound to a single boot mode state for its \
 > lifetime on the PCA server. \
-> Public source code does not document this behavior, \
-> but this behavior was observed from generated certificates from the PCA server.
+> Public source code does not document this behavior, but this behavior was observed from generated certificates from the PCA server.
 
 4. In return, we get an EncryptedIdentityCredential, containing the PCA signed AIK certificate. 
 
-5. Given the EncryptedIdentityCredential, ChromeOS requests from the Cr50 through TPM2_ActivateCredential \
-to use its EK private key and AIK identity(to verify the AIK belongs to us) to recover an intermediate credential, \
-which is then used to decrypt the encrypted data in the EncryptedIdentityCredential object and to obtain and store the AIK certificate.
+5. Given the EncryptedIdentityCredential, ChromeOS requests from the Cr50 through TPM2_ActivateCredential to use its EK private key and AIK identity(to verify the AIK belongs to us) to recover an intermediate credential, which is then used to decrypt the encrypted data in the EncryptedIdentityCredential object and to obtain and store the AIK certificate.
