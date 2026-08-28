@@ -6,8 +6,7 @@ from generators.ek_rsa import derive_cr50_ek_rsa
 from generators.ek_ecc import derive_cr50_ek_ecc
 from signer_types import RSAKeyPair, ECCKeyPair
 
-
-KEY_MATERIAL_PRINTS = True
+KEY_MATERIAL_PRINTS = False
 
 def main() -> int:
     # Ensure the HMAC in the PROD_RO_CERT_REGION verifies the above certificate region,

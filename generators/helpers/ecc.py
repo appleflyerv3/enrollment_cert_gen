@@ -28,15 +28,9 @@ def ecc_point_add(left: ECCPoint, right: ECCPoint) -> ECCPoint:
         return None
 
     if left == right:
-        slope = (
-            (3 * x1 * x1 + A)
-            * pow(2 * y1, -1, P)
-        ) % P
+        slope = ((3 * x1 * x1 + A) * pow(2 * y1, -1, P)) % P
     else:
-        slope = (
-            (y2 - y1)
-            * pow(x2 - x1, -1, P)
-        ) % P
+        slope = ((y2 - y1) * pow(x2 - x1, -1, P)) % P
 
     x3 = (slope * slope - x1 - x2) % P
     y3 = (slope * (x1 - x3) - y1) % P

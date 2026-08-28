@@ -29,7 +29,7 @@ def kdfa_sha256(
             + struct.pack(">I", bits)
         )
 
-        output += hmac.new(key,message,hashlib.sha256,).digest()
+        output += hmac.new(key, message, hashlib.sha256).digest()
 
         iteration += 1
 

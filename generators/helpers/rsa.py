@@ -71,9 +71,7 @@ def cr50_prime(
 
     # Apply Cr50's small-prime sieve.
     for p in _SMALL_PRIMES[1:]:
-        first_index = (
-            -(candidate % p) * pow(2, -1, p)
-        ) % p
+        first_index = (-(candidate % p) * pow(2, -1, p)) % p
 
         for index in range(first_index, 2048, p):
             composites[index] = 1
