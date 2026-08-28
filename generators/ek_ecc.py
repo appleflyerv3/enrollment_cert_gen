@@ -37,10 +37,7 @@ def derive_cr50_ek_ecc(eps: bytes) -> ECCKeyPair:
         # accept candidate < curve_order - 2, then add one.
         if candidate < N - 2:
             private_scalar = candidate + 1
-            public_point = ecc_scalar_multiply(
-                private_scalar,
-                (GX, GY),
-            )
+            public_point = ecc_scalar_multiply(private_scalar, G)
 
             if public_point is None:
                 raise RuntimeError("ECC point inf")
@@ -52,8 +49,7 @@ def derive_cr50_ek_ecc(eps: bytes) -> ECCKeyPair:
             return ECCKeyPair(
                 d=private_scalar,
                 x=x,
-                y=y,
-                counter=counter,
+                y=y
             )
 
         counter = (counter + 1) & 0xFFFFFFFF

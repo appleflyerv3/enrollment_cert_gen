@@ -14,7 +14,6 @@ class ECCKeyPair:
     d: int # private integer
     x: int # public key x coord
     y: int # public key y coord
-    counter: int # key state
 
     @property
     def private_bytes(self) -> bytes:
