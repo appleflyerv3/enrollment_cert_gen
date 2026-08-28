@@ -34,14 +34,14 @@ def send_aik_enrollment_request(request_bytes: bytes):
     return reply
 
 def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCKeyPair, bytes]:
-    # Ensure the HMAC in the PROD_RO_CERT_REGION verifies the above certificate region,
+    # Ensure the HMAC in the EPS verifies the given certificate region,
     # with the EPS as a key.
     eps_match_ro_certs = verify_eps_matches_ro_certs(ro_certs, eps)
     if not eps_match_ro_certs:
-        print("PROD_RO_CERT_REGION does not correspond to PROD_ENDORSEMENT_SEED.")
+        print("ro_certs does not correspond to eps.")
         return 1
 
-    print("PROD_RO_CERT_REGION corresponds to PROD_ENDORSEMENT_SEED.")
+    print("ro_certs corresponds to eps.")
 
     # From the EPS, generate EK RSA keypair
     ek_rsa_keypair: RSAKeyPair = derive_cr50_ek_rsa(eps)
