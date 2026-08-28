@@ -26,7 +26,7 @@ def _first_primes(count: int) -> tuple[int, ...]:
 # Replicate the PRIME_DELTAS array in bn.c
 _SMALL_PRIMES = _first_primes(4096)
 
-def miller_rabin(n: int, rounds: int = 7) -> bool:
+def miller_rabin(n: int, rounds: int) -> bool:
     d = n - 1
     s = 0
 
@@ -82,7 +82,7 @@ def cr50_prime(
 
         value = candidate + 2 * index
 
-        if value % exponent >= 2 and miller_rabin(value):
+        if value % exponent >= 2 and miller_rabin(value, 7):
             return value
 
     return None
