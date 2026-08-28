@@ -3,15 +3,11 @@ import struct
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
+from .helpers.shared import *
 
 TPM_GENERATED_VALUE = 0xFF544347
 TPM_ST_ATTEST_QUOTE = 0x8018
 TPM_ALG_SHA256 = 0x000B
-
-
-def tpm2b(data: bytes) -> bytes:
-    return struct.pack(">H", len(data)) + data
-
 
 def create_fake_qualified_signer(aik_name: bytes) -> bytes:
     # The SRK is never sent to the PCA, so this is useless to the PCA.
@@ -27,7 +23,6 @@ def create_fake_qualified_signer(aik_name: bytes) -> bytes:
             synthetic_srk_qn + aik_name
         ).digest()
     )
-
 
 def tpm2_pcr_quote(
     aik_info: dict,
@@ -56,7 +51,7 @@ def tpm2_pcr_quote(
         + struct.pack(">H", TPM_ALG_SHA256)
         + bytes([3])                         # sizeofSelect
         + bytes(selection)
-        + tpm2b(pcr_digest)
+        + write_tpm2b(pcr_digest)
     )
 
     qualified_signer = create_fake_qualified_signer(
@@ -68,8 +63,8 @@ def tpm2_pcr_quote(
     quoted_data = (
         struct.pack(">I", TPM_GENERATED_VALUE)
         + struct.pack(">H", TPM_ST_ATTEST_QUOTE)
-        + tpm2b(qualified_signer)
-        + tpm2b(b"") # ChromeOS provides an empty qualifyingData
+        + write_tpm2b(qualified_signer)
+        + write_tpm2b(b"") # ChromeOS provides an empty qualifyingData
         + struct.pack(
             ">QIIB",
             0, # clock (no obf)

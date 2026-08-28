@@ -12,13 +12,14 @@ from generators.ek_ecc import derive_cr50_ek_ecc
 from generators.aik_ecc import create_cr50_aik
 from generators.encrypt_ek_cert_aca import encrypt_ek_certificate_for_pca
 from generators.pcr_quote import tpm2_pcr_quote
+from generators.extract_aik_cert import unwrap_pca_aik_certificate
 from signer_types import RSAKeyPair, ECCKeyPair
 
 from proto.aik_enroll import craft_aik_enrollment_protobuf_request
 
 KEY_MATERIAL_PRINTS = False
 
-def send_enrollment_request(request_bytes: bytes):
+def send_aik_enrollment_request(request_bytes: bytes):
     response = requests.post(
         "https://chromeos-ca.gstatic.com/enroll",
         data=request_bytes,
@@ -76,7 +77,7 @@ def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCK
 
     return ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert
 
-def derive_aik_info(ek_ecc_certificate: bytes) -> None:
+def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> None:
     # AttestationEnrollmentRequest = {
     #     "tpm_version": 2, # TPM version
     #     "encrypted_endorsement_credential": None, # DER EK cert, encrypted
@@ -113,6 +114,7 @@ def derive_aik_info(ek_ecc_certificate: bytes) -> None:
         hashlib.sha256
     ).digest()
 
+    # Finally, craft the AIK enrollment request
     protorq = craft_aik_enrollment_protobuf_request(
         2, # TPM_2_0
         aik_keypair_info["tpmt_public"],
@@ -122,13 +124,25 @@ def derive_aik_info(ek_ecc_certificate: bytes) -> None:
         den
     )
 
-    reply = send_enrollment_request(protorq)
+    # Send the AIK enrollment request to the PCA server.
+    print("AIK keypair enrollment request sent to PCA")
+    aik_encrypted_cert_reply = send_aik_enrollment_request(protorq)
+    print("Recieved AIK certificate from PCA")
 
-    print(reply)
+    # Lastly, unwrap the encrypted AIK certificate sent back by the PCA.
+    aik_certificate = unwrap_pca_aik_certificate(
+        aik_encrypted_cert_reply.encrypted_identity_credential,
+        ek_ecc_certificate,
+        ek_ecc_keypair,
+        aik_keypair_info
+    )
+    print("Unwrapped AIK certificate with EK keypair and cert")
+
+    return aik_keypair_info, aik_certificate
 
 def main() -> int:
     ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert = derive_ek_info(PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED)
 
-    derive_aik_info(ek_ecc_cert)
+    aik_keypair_info, aik_certificate = derive_aik_info(ek_ecc_keypair, ek_ecc_cert)
     
 sys.exit(main())
