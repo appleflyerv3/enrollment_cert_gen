@@ -53,4 +53,24 @@ def send_certificate_based_register_dmserver(
 
     reply = dmserver_proto.DeviceManagementResponse()
     reply.ParseFromString(response.content)
-    return reply
+
+    if not reply.HasField("register_response"):
+        raise ValueError(f"Missing register_response: {response.error_message}!!!")
+
+    register = reply.register_response
+
+    if not register.HasField("device_management_token"):
+        raise ValueError("Missing DMToken!!!")
+
+    if register.HasField("enrollment_type"):
+        enrollment_type = dmserver_proto.DeviceRegisterResponse.DeviceMode.Name(
+            register.enrollment_type
+        )
+    else:
+        print("Response does not contain enrollment_type, non-fatal.")
+        enrollment_type = None
+
+    return {
+        "dm_token": register.device_management_token,
+        "enrollment_type": enrollment_type,
+    }

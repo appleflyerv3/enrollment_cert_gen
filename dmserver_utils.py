@@ -28,9 +28,9 @@ def dmserver_device_register_certificate_based(
     enrollment_intermediate_cert: bytes,
     sds: str,
     machine_id: str,
-    machine_model: str,
-    brand_code: str,
     device_id: str,
+    machine_model: str | None = None,
+    brand_code: str | None = None,
 ):  
     # First, generate state key
     state_key = generate_state_keys(sds, 1)[0]
@@ -40,9 +40,9 @@ def dmserver_device_register_certificate_based(
         enrollment_cert,
         enrollment_intermediate_cert,
         machine_id,
-        machine_model,
-        brand_code,
-        state_key
+        state_key,
+        machine_model, # optional
+        brand_code, # optional
     )
 
     # Wrap cert register request in DeviceManagementRequest and sign it
@@ -52,7 +52,7 @@ def dmserver_device_register_certificate_based(
         enrollment_key_info
     )
 
-    print(send_certificate_based_register_dmserver(device_id, protorq))
+    return send_certificate_based_register_dmserver(device_id, protorq)
 
 
     

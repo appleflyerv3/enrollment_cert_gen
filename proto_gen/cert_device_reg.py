@@ -11,9 +11,9 @@ def craft_certificate_based_registration_data(
     enrollment_cert_der: bytes,
     intermediate_cert_der: bytes,
     machine_id: str,
-    machine_model: str,
-    brand_code: str,
     current_state_key: bytes,
+    machine_model: str | None = None,
+    brand_code: str | None = None,
 ) -> bytes:
     leaf_pem = x509.load_der_x509_certificate(
         enrollment_cert_der
@@ -38,8 +38,12 @@ def craft_certificate_based_registration_data(
         dmserver_proto.DeviceRegisterRequest.LIFETIME_INDEFINITE
     )
     register.machine_id = machine_id
-    register.machine_model = machine_model
-    register.brand_code = brand_code
+
+    if machine_model is not None:
+        register.machine_model = machine_model
+    if brand_code is not None:
+        register.brand_code = brand_code
+
     register.server_backed_state_key = current_state_key
 
     return data.SerializeToString(deterministic=True)

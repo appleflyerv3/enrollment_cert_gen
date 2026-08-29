@@ -35,8 +35,8 @@ def craft_aik_enrollment_protobuf_request(
     identity_public_key: bytes,
     encrypted_ek_cert: dict,
     pcr0_quote: dict,
-    pcr1_quote: dict,
     den: bytes,
+    pcr1_quote: dict | None = None,
 ) -> bytes:
     request = pca_server_proto.AttestationEnrollmentRequest()
 
@@ -48,7 +48,9 @@ def craft_aik_enrollment_protobuf_request(
     )
 
     request.pcr0_quote.CopyFrom(quote_proto(pcr0_quote))
-    request.pcr1_quote.CopyFrom(quote_proto(pcr1_quote))
+
+    if pcr1_quote is not None:
+        request.pcr1_quote.CopyFrom(quote_proto(pcr1_quote))
 
     request.enterprise_enrollment_nonce = den
 

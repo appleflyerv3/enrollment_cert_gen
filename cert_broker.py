@@ -65,9 +65,9 @@ def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCK
 def derive_aik_info(
     ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes,
     pcr0_value: bytes,
-    pcr1_value: bytes,
-    pcr1_source_hint: bytes,
     enterprise_enrollment_nonce: bytes, # aka DEN
+    pcr1_value: bytes | None = None,
+    pcr1_source_hint: bytes | None = None,
 ) -> tuple[dict, bytes]:
     # AttestationEnrollmentRequest = {
     #     "tpm_version": 2, # TPM version
@@ -86,7 +86,11 @@ def derive_aik_info(
 
     # Now, generate PCR0 and PCR1 quotes
     pcr0_quote = tpm2_pcr_quote(aik_keypair_info, 0, pcr0_value, source_hint=None)
-    pcr1_quote = tpm2_pcr_quote(aik_keypair_info, 1, pcr1_value, source_hint=pcr1_source_hint)
+
+    if pcr1_value is not None:
+        pcr1_quote = tpm2_pcr_quote(aik_keypair_info, 1, pcr1_value, source_hint=pcr1_source_hint)
+    else:
+        pcr1_quote = None
 
     # Finally, craft the AIK enrollment request
     protorq = craft_aik_enrollment_protobuf_request(
@@ -94,8 +98,8 @@ def derive_aik_info(
         aik_keypair_info["tpmt_public"],
         encrypted_ek_cert,
         pcr0_quote,
-        pcr1_quote,
-        enterprise_enrollment_nonce
+        enterprise_enrollment_nonce,
+        pcr1_quote=pcr1_quote, # optional field
     )
 
     # Send the AIK enrollment request to the PCA server.
