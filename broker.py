@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import requests
 
-import proto.attestation_ca_pb2 as ca
+import proto.attestation_ca_pb2 as pca_server_proto
 
 from ek_certs import *
 from generators.ek_cert import verify_eps_matches_ro_certs, extract_ek_cert
@@ -33,7 +33,7 @@ def send_aik_enrollment_request(request_bytes: bytes):
     )
     response.raise_for_status()
 
-    reply = ca.AttestationEnrollmentResponse()
+    reply = pca_server_proto.AttestationEnrollmentResponse()
     reply.ParseFromString(response.content)
 
     return reply
@@ -47,7 +47,7 @@ def send_enrollment_key_sign_request(request_bytes: bytes):
     )
     response.raise_for_status()
 
-    reply = ca.AttestationCertificateResponse()
+    reply = pca_server_proto.AttestationCertificateResponse()
     reply.ParseFromString(response.content)
 
     return reply
@@ -96,7 +96,13 @@ def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCK
 
     return ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert
 
-def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> tuple[dict, bytes]:
+def derive_aik_info(
+    ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes,
+    pcr0_value: bytes,
+    pcr1_value: bytes,
+    pcr1_source_hint: bytes,
+    enterprise_enrollment_nonce: bytes, # aka DEN
+) -> tuple[dict, bytes]:
     # AttestationEnrollmentRequest = {
     #     "tpm_version": 2, # TPM version
     #     "encrypted_endorsement_credential": None, # DER EK cert, encrypted
@@ -112,26 +118,9 @@ def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> tu
     # Next, encrypt the EK ECC certitificate
     encrypted_ek_cert = encrypt_ek_certificate_for_pca(ek_ecc_certificate)
 
-    pcr0_value_verified = bytes.fromhex(
-        "9f9ea866d3f34fe3a3112ae9cb1fbabc6ffe8cd261d42493bc6842a9e4f93b3d"
-    )
     # Now, generate PCR0 and PCR1 quotes
-    pcr0_quote = tpm2_pcr_quote(aik_keypair_info, 0, pcr0_value_verified, source_hint=None)
-
-    hwid_bytes = "CRAASKANA-QRII B2B-B3B-B3A-C3C-63A".encode("ascii")
-    hwid_digest = hashlib.sha256(hwid_bytes).digest()
-    # Extend operation of HWID digest over PCR1 empty value
-    pcr1_value = hashlib.sha256(b'\x00' * 32 + hwid_digest).digest()
-    pcr1_quote = tpm2_pcr_quote(aik_keypair_info, 1, pcr1_value, source_hint=hwid_bytes)
-
-    stable_device_secret = bytes.fromhex(
-        "e82ea8ebdc73184410729e315adfa41b31add5b8d8f9e04521e9ffa90bc2ad1c"
-    )
-    den = hmac.new(
-        b"attestation_based_enrollment",
-        stable_device_secret,
-        hashlib.sha256
-    ).digest()
+    pcr0_quote = tpm2_pcr_quote(aik_keypair_info, 0, pcr0_value, source_hint=None)
+    pcr1_quote = tpm2_pcr_quote(aik_keypair_info, 1, pcr1_value, source_hint=pcr1_source_hint)
 
     # Finally, craft the AIK enrollment request
     protorq = craft_aik_enrollment_protobuf_request(
@@ -140,7 +129,7 @@ def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> tu
         encrypted_ek_cert,
         pcr0_quote,
         pcr1_quote,
-        den
+        enterprise_enrollment_nonce
     )
 
     # Send the AIK enrollment request to the PCA server.

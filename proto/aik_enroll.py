@@ -1,7 +1,7 @@
-import proto.attestation_ca_pb2 as ca
+import proto.attestation_ca_pb2 as pca_server_proto
 
-def encrypted_data_proto(values: dict) -> ca.EncryptedData:
-    result = ca.EncryptedData()
+def encrypted_data_proto(values: dict) -> pca_server_proto.EncryptedData:
+    result = pca_server_proto.EncryptedData()
 
     for field in (
         "wrapped_key",
@@ -17,8 +17,8 @@ def encrypted_data_proto(values: dict) -> ca.EncryptedData:
     return result
 
 
-def quote_proto(values: dict) -> ca.Quote:
-    result = ca.Quote(
+def quote_proto(values: dict) -> pca_server_proto.Quote:
+    result = pca_server_proto.Quote(
         quote=values["quote"],
         quoted_data=values["quoted_data"],
         quoted_pcr_value=values["quoted_pcr_value"],
@@ -38,7 +38,7 @@ def craft_aik_enrollment_protobuf_request(
     pcr1_quote: dict,
     den: bytes,
 ) -> bytes:
-    request = ca.AttestationEnrollmentRequest()
+    request = pca_server_proto.AttestationEnrollmentRequest()
 
     request.tpm_version = tpm_version
     request.identity_public_key = identity_public_key
