@@ -2,9 +2,11 @@ import sys
 import hashlib
 import hmac
 import uuid
+import argparse
+from pathlib import Path
+
 from ek_certs import PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED
 from cert_broker import derive_ek_info, derive_aik_info, derive_enrollment_key_info
-
 from dmserver_utils import dmserver_device_register_certificate_based
 
 SAVE_ENROLLMENT_CERT = False
@@ -55,12 +57,15 @@ def derive_aik_info_wrapper(
 
     return aik_keypair_info, aik_certificate
 
-def main() -> int:
-    sn = "FUCKULXRD"
-    bootmode = "verified" # "verified" or "developer"
-    sds = "e9c429208a505939bb3b2c7774c4e57e27114dc78276a5eddb3643ea5eda8e13"
-    hwid = None # HWID not required, PCR1 quoting unused?
-    rlz = None # RLZ not required, not enforced on DMServer
+def main(
+    bootmode: str,
+    sds: str,
+    sn: str,
+    output_dmtoken: Path,
+    output_device_id: Path,
+    hwid: str | None = None, # HWID not required, PCR1 quoting unused?
+    rlz: str | None = None, # RLZ not required, not enforced on DMServer
+) -> int:
     device_id = str(uuid.uuid4())
 
     ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert = derive_ek_info(PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED)
@@ -88,9 +93,39 @@ def main() -> int:
         sds, sn, device_id,
         hwid, rlz, # optional fields
     )
+    print("Device successfully registered with DMServer!")
+
+    with open(output_dmtoken, "w", encoding="utf-8") as file:
+        file.write(dmserver_resp["dm_token"])
+    with open(output_device_id, "w", encoding="utf-8") as file:
+        file.write(device_id)
+
     print("dm_token: " + dmserver_resp["dm_token"])
     print("device_id: " + device_id)
 
     return 0
-    
-sys.exit(main())
+
+_argparser = argparse.ArgumentParser(
+    prog="verified-spoofer-dmserver",
+)
+
+_argparser.add_argument("--bootmode", type=str, default="verified", choices=["verified", "developer"])
+_argparser.add_argument("--stable_device_secret", type=str, required=True)
+_argparser.add_argument("--serial_number", type=str, required=True)
+_argparser.add_argument("--hwid", type=str, default=None)
+_argparser.add_argument("--rlz", type=str, default=None)
+_argparser.add_argument("--output_dm_token_path", type=Path, required=True)
+_argparser.add_argument("--output_device_id_path", type=Path, required=True)
+args = _argparser.parse_args()
+
+sys.exit(
+    main(
+        args.bootmode,
+        args.stable_device_secret,
+        args.serial_number,
+        args.output_dm_token_path,
+        args.output_device_id_path,
+        args.hwid,
+        args.rlz
+    )
+)
