@@ -70,6 +70,6 @@ which makes device state forgery a lot harder, where a trusted EK keypair is nee
 EK certificate had to be leaked from a Cr50.
 
 ## credits
-- lxrd: how enrollment works
+- lxrd: how enrollment works, figuring out boot mode was derived from the enrollment cert
 - appleflyer: how attestation works, leaking EK certs and EPS with Crapple.
 - chatgpt: some crypto code
