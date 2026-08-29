@@ -2,13 +2,6 @@
 Main code to broker certificates based on the EK certificate.
 Simplify interaction with the PCA server.
 """
-import hashlib
-import hmac
-import requests
-
-import proto.compiled.attestation_ca_pb2 as pca_server_proto
-
-from ek_certs import *
 from generators.ek_cert import verify_eps_matches_ro_certs, extract_ek_cert
 from generators.ek_rsa import derive_cr50_ek_rsa
 from generators.ek_ecc import derive_cr50_ek_ecc
@@ -18,39 +11,12 @@ from generators.tpm2_pcr_quote import tpm2_pcr_quote
 from generators.tpm2_certify import tpm2_certify
 from generators.extract_aik_cert import unwrap_pca_aik_certificate
 from signer_types import RSAKeyPair, ECCKeyPair
+from server_requester import send_aik_enrollment_request, send_enrollment_key_sign_request
 
-from proto.aik_enroll import craft_aik_enrollment_protobuf_request
-from proto.enrollment_key_enroll import craft_enrollment_key_protobuf_request
+from proto_gen.aik_enroll import craft_aik_enrollment_protobuf_request
+from proto_gen.enrollment_key_enroll import craft_enrollment_key_protobuf_request
 
 KEY_MATERIAL_PRINTS = False
-
-def send_aik_enrollment_request(request_bytes: bytes):
-    response = requests.post(
-        "https://chromeos-ca.gstatic.com/enroll",
-        data=request_bytes,
-        headers={"Content-Type": "application/octet-stream"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    reply = pca_server_proto.AttestationEnrollmentResponse()
-    reply.ParseFromString(response.content)
-
-    return reply
-
-def send_enrollment_key_sign_request(request_bytes: bytes):
-    response = requests.post(
-        "https://chromeos-ca.gstatic.com/sign",
-        data=request_bytes,
-        headers={"Content-Type": "application/octet-stream"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    reply = pca_server_proto.AttestationCertificateResponse()
-    reply.ParseFromString(response.content)
-
-    return reply
 
 def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCKeyPair, bytes]:
     # Ensure the HMAC in the EPS verifies the given certificate region,
@@ -150,11 +116,15 @@ def derive_aik_info(
 
 def derive_enrollment_key_info(aik_keypair_info: dict, aik_certificate: bytes):
     enrollment_key_keypair_info = create_cr50_enrollment_key()
+    print("Derived Cr50 enrollment certificate keypair")
 
     signed_enrollment_key_info = tpm2_certify(aik_keypair_info, enrollment_key_keypair_info)
+    print("Signed Cr50 enrollment cert keypair with AIK")
 
     protorq = craft_enrollment_key_protobuf_request(aik_certificate, signed_enrollment_key_info)
 
+    print("Requesting enrollment certificate from PCA...")
     response = send_enrollment_key_sign_request(protorq)
+    print("Obtained enrollment certificate from PCA")
 
     return enrollment_key_keypair_info, response.certified_key_credential, response.intermediate_ca_cert

@@ -1,4 +1,4 @@
-import proto.compiled.attestation_ca_pb2 as pca_server_proto
+import proto_gen.compiled.attestation_ca_pb2 as pca_server_proto
 
 def encrypted_data_proto(values: dict) -> pca_server_proto.EncryptedData:
     result = pca_server_proto.EncryptedData()
