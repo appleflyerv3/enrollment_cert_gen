@@ -2,6 +2,7 @@ import sys
 import hashlib
 import hmac
 import requests
+import secrets
 
 import proto.attestation_ca_pb2 as ca
 
@@ -9,13 +10,15 @@ from ek_certs import *
 from generators.ek_cert import verify_eps_matches_ro_certs, extract_ek_cert
 from generators.ek_rsa import derive_cr50_ek_rsa
 from generators.ek_ecc import derive_cr50_ek_ecc
-from generators.aik_ecc import create_cr50_aik
+from generators.ecc_cert_gen import create_cr50_aik, create_cr50_enrollment_key
 from generators.encrypt_ek_cert_aca import encrypt_ek_certificate_for_pca
-from generators.pcr_quote import tpm2_pcr_quote
+from generators.tpm2_pcr_quote import tpm2_pcr_quote
+from generators.tpm2_certify import tpm2_certify
 from generators.extract_aik_cert import unwrap_pca_aik_certificate
 from signer_types import RSAKeyPair, ECCKeyPair
 
 from proto.aik_enroll import craft_aik_enrollment_protobuf_request
+from proto.enrollment_key_enroll import craft_enrollment_key_protobuf_request
 
 KEY_MATERIAL_PRINTS = False
 
@@ -29,6 +32,20 @@ def send_aik_enrollment_request(request_bytes: bytes):
     response.raise_for_status()
 
     reply = ca.AttestationEnrollmentResponse()
+    reply.ParseFromString(response.content)
+
+    return reply
+
+def send_enrollment_key_sign_request(request_bytes: bytes):
+    response = requests.post(
+        "https://chromeos-ca.gstatic.com/sign",
+        data=request_bytes,
+        headers={"Content-Type": "application/octet-stream"},
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    reply = ca.AttestationCertificateResponse()
     reply.ParseFromString(response.content)
 
     return reply
@@ -77,7 +94,7 @@ def derive_ek_info(ro_certs: bytes, eps: bytes) -> tuple[RSAKeyPair, bytes, ECCK
 
     return ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert
 
-def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> None:
+def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> tuple[dict, bytes]:
     # AttestationEnrollmentRequest = {
     #     "tpm_version": 2, # TPM version
     #     "encrypted_endorsement_credential": None, # DER EK cert, encrypted
@@ -140,9 +157,26 @@ def derive_aik_info(ek_ecc_keypair: ECCKeyPair, ek_ecc_certificate: bytes) -> No
 
     return aik_keypair_info, aik_certificate
 
+def derive_enrollment_cert(aik_keypair_info: dict, aik_certificate: bytes):
+    enrollment_key_keypair_info = create_cr50_enrollment_key()
+
+    signed_enrollment_key_info = tpm2_certify(aik_keypair_info, enrollment_key_keypair_info)
+
+    protorq = craft_enrollment_key_protobuf_request(aik_certificate, signed_enrollment_key_info)
+
+    response = send_enrollment_key_sign_request(protorq)
+
+    return enrollment_key_keypair_info, response.certified_key_credential, response.intermediate_ca_cert
+
+
 def main() -> int:
     ek_rsa_keypair, ek_rsa_cert, ek_ecc_keypair, ek_ecc_cert = derive_ek_info(PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED)
 
     aik_keypair_info, aik_certificate = derive_aik_info(ek_ecc_keypair, ek_ecc_cert)
+
+    enrollment_key_keypair_info, enrollment_key_certificate, enrollment_key_intermediate_ca = derive_enrollment_cert(aik_keypair_info, aik_certificate)
+
+    with open("enrollment_certificate.der", "wb") as file:
+        file.write(enrollment_key_certificate)
     
 sys.exit(main())

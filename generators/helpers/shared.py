@@ -75,3 +75,18 @@ def read_tpm2b(data: bytes, offset: int) -> tuple[bytes, int]:
 
 def write_tpm2b(data: bytes) -> bytes:
     return struct.pack(">H", len(data)) + data
+
+def create_fake_qualified_signer(name: bytes) -> bytes:
+    # The SRK is never sent to the PCA, so this is useless to the PCA.
+    # Generate a fake qualifiedsigner.
+    synthetic_srk_qn = (
+        b"\x00\x0b"
+        + hashlib.sha256(b"software-test-srk").digest()
+    )
+
+    return (
+        b"\x00\x0b"
+        + hashlib.sha256(
+            synthetic_srk_qn + name
+        ).digest()
+    )

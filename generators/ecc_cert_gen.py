@@ -26,10 +26,11 @@ AIK_TEMPLATE = bytes.fromhex(
     "0023000b00050472000000100018000b0003001000000000"
 )
 
-# TPM Name = nameAlg || hash(TPMT_PUBLIC)
-AIK_TEMPLATE_NAME = b"\x00\x0b" + hashlib.sha256(AIK_TEMPLATE).digest()
+ENROLLMENT_KEY_TEMPLATE = bytes.fromhex(
+    "0023000b000404720000001000100003001000000000"
+)
 
-def create_cr50_aik():
+def create_cr50_ecc_signing_key(template: bytes):
     # Cr50 uses CryptGenerateRandom(PRIMARY_SEED_SIZE).
     local_creation_seed = secrets.token_bytes(32)
 
@@ -43,7 +44,8 @@ def create_cr50_aik():
         candidate_bytes = kdfa_sha256(
             key=ecc_seed,
             label=b"ECC key by vendor",
-            context_u=AIK_TEMPLATE_NAME,
+            # TPM Name = nameAlg || hash(TPMT_PUBLIC)
+            context_u=b"\x00\x0b" + hashlib.sha256(template).digest(),
 
             # Important Cr50 quirk: ecc.c uses memcpy() from uint32_t,
             # so this counter is little-endian on Cr50.
@@ -79,11 +81,22 @@ def create_cr50_aik():
                     x=public_x,
                     y=public_y,
                 ),
-                "template_name": AIK_TEMPLATE_NAME,
+                "template_name": b"\x00\x0b" + hashlib.sha256(template).digest(),
                 "tpmt_public": final_public_area,
-                "aik_name": final_name,
+                "key_name": final_name,
             }
 
         counter = (counter + 1) & 0xFFFFFFFF
 
     raise RuntimeError("ECC ctr wrap 32bit")
+
+def create_cr50_aik() -> dict:
+    result = create_cr50_ecc_signing_key(AIK_TEMPLATE)
+    result["aik_name"] = result["key_name"]
+    return result
+
+
+def create_cr50_enrollment_key() -> dict:
+    result = create_cr50_ecc_signing_key(ENROLLMENT_KEY_TEMPLATE)
+    result["enrollment_key_name"] = result["key_name"]
+    return result

@@ -9,21 +9,6 @@ TPM_GENERATED_VALUE = 0xFF544347
 TPM_ST_ATTEST_QUOTE = 0x8018
 TPM_ALG_SHA256 = 0x000B
 
-def create_fake_qualified_signer(aik_name: bytes) -> bytes:
-    # The SRK is never sent to the PCA, so this is useless to the PCA.
-    # Generate a fake qualifiedsigner.
-    synthetic_srk_qn = (
-        b"\x00\x0b"
-        + hashlib.sha256(b"software-test-srk").digest()
-    )
-
-    return (
-        b"\x00\x0b"
-        + hashlib.sha256(
-            synthetic_srk_qn + aik_name
-        ).digest()
-    )
-
 def tpm2_pcr_quote(
     aik_info: dict,
     pcr_index: int,
@@ -47,9 +32,9 @@ def tpm2_pcr_quote(
 
     # TPML_PCR_SELECTION followed by TPM2B_DIGEST.
     quote_info = (
-        struct.pack(">I", 1)                 # selection count
+        struct.pack(">I", 1) # selection count
         + struct.pack(">H", TPM_ALG_SHA256)
-        + bytes([3])                         # sizeofSelect
+        + bytes([3]) # sizeofSelect
         + bytes(selection)
         + write_tpm2b(pcr_digest)
     )
