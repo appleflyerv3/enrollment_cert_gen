@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import requests
 
-import proto.attestation_ca_pb2 as pca_server_proto
+import proto.compiled.attestation_ca_pb2 as pca_server_proto
 
 from ek_certs import *
 from generators.ek_cert import verify_eps_matches_ro_certs, extract_ek_cert

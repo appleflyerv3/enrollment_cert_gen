@@ -1,5 +1,5 @@
 import secrets
-import proto.attestation_ca_pb2 as pca_server_proto
+import proto.compiled.attestation_ca_pb2 as pca_server_proto
 
 def craft_enrollment_key_protobuf_request(aik_certificate: bytes, signed_enrollment_key_info: dict):
     request = pca_server_proto.AttestationCertificateRequest()

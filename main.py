@@ -3,7 +3,9 @@ import hashlib
 import hmac
 
 from ek_certs import PROD_RO_CERT_REGION, PROD_ENDORSEMENT_SEED
-from broker import derive_ek_info, derive_aik_info, derive_enrollment_key_info
+from cert_broker import derive_ek_info, derive_aik_info, derive_enrollment_key_info
+
+SAVE_ENROLLMENT_CERT = False
 
 PCR0_VALUES = {
     "verified": "89eaf35134b4b3c649f44c0c765b96aeab8bb34ee83cc7a683c4e53d1581c8c7",
@@ -26,7 +28,7 @@ def derive_aik_info_wrapper(
     # Extend operation of HWID digest over PCR1 empty value
     pcr1_value = hashlib.sha256(b'\x00' * 32 + hwid_digest).digest()
 
-    # enterprise_enrollmen_nonce derivation
+    # enterprise_enrollment_nonce derivation
     stable_device_secret_bytes = bytes.fromhex(stable_device_secret)
     den = hmac.new(
         b"attestation_based_enrollment",
@@ -50,15 +52,16 @@ def main() -> int:
 
     aik_keypair_info, aik_certificate = derive_aik_info_wrapper(
         ek_ecc_keypair,
-        ek_rsa_cert,
-        bootmode="verified",
+        ek_ecc_cert,
+        bootmode="verified", # "verified" or "developer"
         hwid="CRAASKANA-QRII B2B-B3B-B3A-C3C-63A",
         stable_device_secret="e82ea8ebdc73184410729e315adfa41b31add5b8d8f9e04521e9ffa90bc2ad1c",
     )
 
     enrollment_key_keypair_info, enrollment_key_certificate, enrollment_key_intermediate_ca = derive_enrollment_key_info(aik_keypair_info, aik_certificate)
 
-    with open("enrollment_certificate.der", "wb") as file:
-        file.write(enrollment_key_certificate)
+    if SAVE_ENROLLMENT_CERT:
+        with open("enrollment_certificate.der", "wb") as file:
+            file.write(enrollment_key_certificate)
     
 sys.exit(main())
